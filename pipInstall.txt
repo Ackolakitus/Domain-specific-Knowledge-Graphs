@@ -1,0 +1,1 @@
+pip install neo4j python-dotenv pandas pyvis networkx beautifulsoup4 requests
