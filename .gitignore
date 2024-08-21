@@ -3,3 +3,6 @@ node_modules/
 venv/
 idea/
 drugs/data/
+proba.env
+drugs/proba.py
+drugs/proba2.py
