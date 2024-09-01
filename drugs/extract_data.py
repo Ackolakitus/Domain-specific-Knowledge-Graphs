@@ -119,7 +119,7 @@ def create_data():
     save_to_json(small_molecule_drugs, './data/small-molecule-drugs.json')
 
 
-def extract_classification_sets(drugs):
+def extract_classification_sets_with_number_of_items(drugs):
     kingdoms = defaultdict(int)
     superclasses = defaultdict(int)
     classes = defaultdict(int)
@@ -139,6 +139,28 @@ def extract_classification_sets(drugs):
 
     return kingdoms, superclasses, classes, subclasses
 
+def extract_classification_sets(drugs):
+    kingdoms = set()
+    superclasses = set()
+    classes = set()
+    subclasses = set()
+    parents = set()
+
+    for drug in drugs:
+        classification = drug.get('classification', {})
+        if classification:
+            if kingdom := classification.get('kingdom'):
+                kingdoms.add(kingdom)
+            if superclass := classification.get('superclass'):
+                superclasses.add(superclass.lower())
+            if class_ := classification.get('class'):
+                classes.add(class_.lower())
+            if subclass := classification.get('subclass'):
+                subclasses.add(subclass.lower())
+            if parent := classification.get('parent'):
+                parents.add(parent.lower())
+
+    return kingdoms, superclasses, classes, subclasses, parents
 
 def print_data_items(data):
     for item in data:
@@ -153,26 +175,32 @@ def print_data_items_count(data):
 def extract_classification_relationships(drugs):
     relationships_set = set()
 
+
     for drug in drugs:
-        if drug.get('name', "") == "Ceftibuten":
-            print("EVEGO BE")
+        parent_node = False
 
         classification = drug.get('classification', {})
         if classification:
             if kingdom := classification.get('kingdom'):
                 relationships_set.add(('Root', 'Kingdoms', 'Kingdom', kingdom))
             if superclass := classification.get('superclass'):
-                relationships_set.add(('Kingdom', kingdom, 'Superclass', superclass))
+                relationships_set.add(('Kingdom', kingdom, 'Superclass', superclass.lower()))
             if class_ := classification.get('class'):
-                relationships_set.add(('Superclass', superclass, 'Class', class_))
+                relationships_set.add(('Superclass', superclass.lower(), 'Class', class_.lower()))
             if subclass := classification.get('subclass'):
-                relationships_set.add(('Class', class_, 'Subclass', subclass))
-            if direct_parent := classification.get('direct-parent'):
+                relationships_set.add(('Class', class_.lower(), 'Subclass', subclass.lower()))
+            if direct_parent := classification.get('parent'):
                 for key, value in classification.items():
-                    if key != "direct-parent" and value == direct_parent:
+                    if key != "parent" and value == direct_parent:
+                        parent_node = True
                         parent_type = key.title()
-                        relationships_set.add((f'{parent_type}', direct_parent, 'Drug', drug.get('name')))
+                        relationships_set.add((f'{parent_type}', direct_parent.lower(), 'Drug', drug.get('name')))
                         break
+
+                if not parent_node and subclass:
+                    relationships_set.add((f'Subclass', subclass.lower(), 'Parent', direct_parent.lower()))
+                    relationships_set.add((f'Parent', direct_parent.lower(), 'Drug', drug.get('name')))
+
 
     return relationships_set
 
@@ -204,13 +232,13 @@ def extract_interaction_relationships(drugs, type):
 def main():
     # create_data()
 
-    # data = load_from_json('./data/extracted-biotech-drugs.json')
-    data = load_from_json('./data/small-molecule-drugs.json')
+    # data = load_from_pickle('./data/extracted-biotech-drugs.pkl')
+    data = load_from_pickle('./data/small-molecule-drugs.pkl')
 
-    # kingdoms, superclasses, classes, subclasses = extract_classification_sets(data)
+    kingdoms, superclasses, classes, subclasses, parents = extract_classification_sets(data)
     #
     # print("Kingdoms:")
-    # print_data_items_count(kingdoms)
+    # print_data_items(kingdoms)
     #
     # print("\nSuperclasses:")
     # print_data_items_count(superclasses)
@@ -230,8 +258,8 @@ def main():
     # print_data_items(drug_interactions)
     # print(len(drug_interactions))
 
-    food_interactions = extract_interaction_relationships(data, 'food')
-    print_data_items(food_interactions)
-    print(len(food_interactions))
+    # food_interactions = extract_interaction_relationships(data, 'food')
+    # print_data_items(food_interactions)
+    # print(len(food_interactions))
 if __name__ == '__main__':
     main()

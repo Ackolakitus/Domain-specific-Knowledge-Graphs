@@ -1,14 +1,15 @@
 import neo4j.exceptions
 from neo4j import GraphDatabase
 
+
 # CREATE INDEX FOR (p:Plant) ON (p.scientific_name);
 def create_constraints(tx):
     tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (k:Kingdom) REQUIRE k.name IS UNIQUE ")
-    tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (spc:Superclass) REQUIRE spc.name IS UNIQUE ")
-    tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Class) REQUIRE c.name IS UNIQUE ")
-    tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (sbc:Subclass) REQUIRE sbc.name IS UNIQUE ")
-    tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Parent) REQUIRE p.name IS UNIQUE ")
-    tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (d:Drug) REQUIRE d.name IS UNIQUE")
+    # tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (spc:Superclass) REQUIRE spc.name IS UNIQUE ")
+    # tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Class) REQUIRE c.name IS UNIQUE ")
+    # tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (sbc:Subclass) REQUIRE sbc.name IS UNIQUE ")
+    # tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Parent) REQUIRE p.name IS UNIQUE ")
+    # tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (d:Drug) REQUIRE d.name IS UNIQUE")
 
 
 def add_root_node(tx):
@@ -62,6 +63,18 @@ def add_subclass_nodes(tx, subclasses):
             tx.run(query, name=subclass)
         except neo4j.exceptions.TransactionError:
             continue
+
+def add_parent_nodes(tx, parents):
+    """
+    Add parent node for each parent in the list.
+    """
+    for parent in parents:
+        query = "MERGE (p:Parent {name: $name})"
+        try:
+            tx.run(query, name=parent)
+        except neo4j.exceptions.TransactionError:
+            continue
+
 
 def add_or_update_drug_nodes(tx, drugs):
     """
@@ -137,30 +150,30 @@ def delete_relationship(tx, relationship):
 # AND (type(r) IN ['HAS_CLASS', 'HAS_SUBCLASS', 'HAS_DRUG'])
 # RETURN DISTINCT n
 
-def delete_node_and_nodes_belonging(tx, node_type, node_name):
-    """
-    Delete a type of node by its name and all nodes belonging to it.
-    """
-    delete_nodes_query = """
-            MATCH (p:Plant)-[:BELONGS_TO]->(n:$type {name: $name})
-            DETACH DELETE p
-            """
-    tx.run(delete_nodes_query, type=node_type, name=node_name)
+# def delete_node_and_nodes_belonging(tx, node_type, node_name):
+#     """
+#     Delete a type of node by its name and all nodes belonging to it.
+#     """
+#     delete_nodes_query = """
+#             MATCH (p:Plant)-[:BELONGS_TO]->(n:$type {name: $name})
+#             DETACH DELETE p
+#             """
+#     tx.run(delete_nodes_query, type=node_type, name=node_name)
+#
+#     delete_node_query = """
+#             MATCH (n:$type {name: $name})
+#             DETACH DELETE n
+#             """
+#     tx.run(delete_node_query, type=node_type, name=node_name)
 
-    delete_node_query = """
-            MATCH (n:$type {name: $name})
-            DETACH DELETE n
-            """
-    tx.run(delete_node_query, type=node_type, name=node_name)
 
-
-def print_plant_node_details(node):
-    (node_id, node_props) = node
-    print(f"Plant: {node_props['scientific_name']}\n"
-          f"Symbol: {node_props['symbol']}\n"
-          f"Common name: {node_props['common_name']}\n"
-          f"Other names: {node_props['other_names']}\n"
-          f"Authors: {node_props['authors']}")
+# def print_plant_node_details(node):
+#     (node_id, node_props) = node
+#     print(f"Plant: {node_props['scientific_name']}\n"
+#           f"Symbol: {node_props['symbol']}\n"
+#           f"Common name: {node_props['common_name']}\n"
+#           f"Other names: {node_props['other_names']}\n"
+#           f"Authors: {node_props['authors']}")
 
 
 class Neo4jGraphClass:
@@ -179,7 +192,7 @@ class Neo4jGraphClass:
         """
         try:
             self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
-            self.driver.verify_connectivity()
+            # self.driver.verify_connectivity()
         except neo4j.exceptions.ConfigurationError:
             print("URI format is not supported! Check your uri environment variable.")
         except neo4j.exceptions.AuthError:
@@ -204,7 +217,7 @@ class Neo4jGraphClass:
         if self.driver:
             self.driver.close()
 
-    def createOrUpdateGraph(self, drugs, kingdoms, superclasses, classes, subclasses, relationships, batch_size=300):
+    def create_or_update_graph(self, drugs, kingdoms, superclasses, classes, subclasses, parents, relationships, batch_size=300):
         """
         Save the graph data into the Neo4j database.
 
@@ -228,16 +241,6 @@ class Neo4jGraphClass:
             except neo4j.exceptions.ConstraintError:
                 pass
 
-            try:
-                session.execute_write(add_family_nodes, families)
-            except neo4j.exceptions.ConstraintError:
-                pass
-
-            try:
-                session.execute_write(add_root_relationships, families)
-            except neo4j.exceptions.ConstraintError:
-                pass
-
             def process_batches(items, batch_func):
                 total_items = len(items)
                 for i in range(0, total_items, batch_size):
@@ -249,54 +252,60 @@ class Neo4jGraphClass:
                         pass
                     print(f"Processed items from {i} to {i + len(batch)}")
 
-            process_batches(plants, add_or_update_plant_nodes)
+            process_batches(kingdoms, add_kingdom_nodes)
+            process_batches(superclasses, add_superclass_nodes)
+            process_batches(classes, add_class_nodes)
+            process_batches(subclasses, add_subclass_nodes)
+            process_batches(parents, add_parent_nodes)
+
+            process_batches(drugs, add_or_update_drug_nodes)
             process_batches(relationships, add_or_update_relationships)
 
-    def deleteDataFromGraph(self, plants, families, deleteFamily):
-        with self.driver.session() as session:
-            if deleteFamily:
-                session.execute_write(delete_family_and_nodes_belonging, families)
-            else:
-                for plant in plants:
-                    session.execute_write(delete_plant_node, plant)
-
-    def get_plants_nodes_belonging_to_family(self, family_name):
-        """
-        Get plant nodes belonging to a specific family.
-        :param family_name: Name of the family to search for.
-        :return: List of nodes belonging to the family.
-        """
-        query = """
-                MATCH (n)-[:BELONGS_TO]->(m {name: $name})
-                RETURN elementId(n) AS node_id, n
-                """
-        with self.driver.session() as session:
-            result = session.run(query, name=family_name)
-            nodes = [(record["node_id"], record["n"]) for record in result]
-        return nodes
-
-    def get_plant_node(self, plantName):
-        query = """
-            MATCH (p:Plant {scientific_name: $scientific_name})
-            RETURN elementId(p) AS node_id, p
-        """
-        with self.driver.session() as session:
-            result = session.run(query, scientific_name=plantName)
-            record = result.single()
-            node = (record["node_id"], record["p"])
-        return node
-
-    def deleteFamilyNode(self, familyName):
-        with self.driver.session() as session:
-            session.execute_write(delete_family_node, familyName)
-
-    def deletePlantNode(self, plantName):
-        with self.driver.session() as session:
-            session.execute_write(delete_plant_node, plantName)
-
-    def deleteFamilyAndNodesBelonging(self, familyName):
-        with self.driver.session() as session:
-            session.execute_write(delete_family_and_nodes_belonging, familyName)
+    # def deleteDataFromGraph(self, plants, families, deleteFamily):
+    #     with self.driver.session() as session:
+    #         if deleteFamily:
+    #             session.execute_write(delete_family_and_nodes_belonging, families)
+    #         else:
+    #             for plant in plants:
+    #                 session.execute_write(delete_plant_node, plant)
+    #
+    # def get_plants_nodes_belonging_to_family(self, family_name):
+    #     """
+    #     Get plant nodes belonging to a specific family.
+    #     :param family_name: Name of the family to search for.
+    #     :return: List of nodes belonging to the family.
+    #     """
+    #     query = """
+    #             MATCH (n)-[:BELONGS_TO]->(m {name: $name})
+    #             RETURN elementId(n) AS node_id, n
+    #             """
+    #     with self.driver.session() as session:
+    #         result = session.run(query, name=family_name)
+    #         nodes = [(record["node_id"], record["n"]) for record in result]
+    #     return nodes
+    #
+    # def get_plant_node(self, plantName):
+    #     query = """
+    #         MATCH (p:Plant {scientific_name: $scientific_name})
+    #         RETURN elementId(p) AS node_id, p
+    #     """
+    #     with self.driver.session() as session:
+    #         result = session.run(query, scientific_name=plantName)
+    #         record = result.single()
+    #         node = (record["node_id"], record["p"])
+    #     return node
+    #
+    # def deleteFamilyNode(self, familyName):
+    #     with self.driver.session() as session:
+    #         session.execute_write(delete_family_node, familyName)
+    #
+    # def deletePlantNode(self, plantName):
+    #     with self.driver.session() as session:
+    #         session.execute_write(delete_plant_node, plantName)
+    #
+    # def deleteFamilyAndNodesBelonging(self, familyName):
+    #     with self.driver.session() as session:
+    #         session.execute_write(delete_family_and_nodes_belonging, familyName)
 
 # with Neo4jGraphClass(uri, user, password) as neo4j_query:
 # nodes = neo4j_query.find_nodes_belonging_to_family("Moringaceae")

@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import networkx as nx
 from pyvis.network import Network
+from pathlib import Path
 from neo4j import GraphDatabase
 
 # Load the data
@@ -52,11 +53,14 @@ drugs = pd.read_csv('data/drugs.tsv', sep='\t')
 # Connect to Neo4j
 
 # ===============================================================================
-load_dotenv()
+env_path = Path('..', 'proba.env')
+load_dotenv(dotenv_path=env_path)
 
-uri = os.getenv("URI")
-user = os.getenv("USER")
-password = os.getenv("PASSWORD")
+uri = os.getenv("URI_DRUGS")
+user = os.getenv("USER_DRUGS")
+password = os.getenv("PASSWORD_DRUGS")
+print(uri, user, password, sep="\n")
+
 driver = GraphDatabase.driver(uri, auth=(user, password))
 
 
