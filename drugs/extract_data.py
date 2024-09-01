@@ -66,21 +66,19 @@ def extract_drug_info(file_path):
         drug_info = {
             'drugbank-id': drug.find('drugbank:drugbank-id', ns).text,
             'type': drug.attrib.get('type'),
-            'name': drug.find('drugbank:name', ns).text if drug.find('drugbank:name', ns) is not None else None,
+            'name': drug.find('drugbank:name', ns).text.lower().capitalize() if drug.find('drugbank:name', ns) is not None else None,
             'state': drug.find('drugbank:state', ns).text if drug.find('drugbank:state', ns) is not None else None,
             'groups': [group.text for group in drug.findall('drugbank:groups/drugbank:group', ns)],
-            'salts': [{'drugbank-id': salt.find('drugbank:drugbank-id', ns).text,
-                       'name': salt.find('drugbank:name', ns).text}
-                      for salt in drug.findall('drugbank:salts/drugbank:salt', ns)],
+            'salts': [salt.find('drugbank:name', ns).text for salt in drug.findall('drugbank:salts/drugbank:salt', ns)],
             'classification': {
                 'kingdom': classification.find('drugbank:kingdom',
                                                ns).text.title() if classification is not None else None,
                 'superclass': classification.find('drugbank:superclass',
-                                                  ns).text if classification is not None else None,
-                'class': classification.find('drugbank:class', ns).text if classification is not None else None,
-                'subclass': classification.find('drugbank:subclass', ns).text if classification is not None else None,
+                                                  ns).text.lower().capitalize() if classification is not None else None,
+                'class': classification.find('drugbank:class', ns).text.lower().capitalize() if classification is not None else None,
+                'subclass': classification.find('drugbank:subclass', ns).text.lower().capitalize() if classification is not None else None,
                 'parent': classification.find('drugbank:direct-parent',
-                                              ns).text if classification is not None else None,
+                                              ns).text.lower().capitalize() if classification is not None else None,
             } if classification is not None else None,
             'affected_organisms': [organism.text for organism in
                                    drug.findall('drugbank:affected-organisms/drugbank:affected-organism', ns)],
@@ -152,15 +150,15 @@ def extract_classification_sets(drugs):
             if kingdom := classification.get('kingdom'):
                 kingdoms.add(kingdom)
             if superclass := classification.get('superclass'):
-                superclasses.add(superclass.lower())
+                superclasses.add(superclass)
             if class_ := classification.get('class'):
-                classes.add(class_.lower())
+                classes.add(class_)
             if subclass := classification.get('subclass'):
-                subclasses.add(subclass.lower())
+                subclasses.add(subclass)
             if parent := classification.get('parent'):
-                parents.add(parent.lower())
+                parents.add(parent)
 
-    return kingdoms, superclasses, classes, subclasses, parents
+    return kingdoms, superclasses, classes, subclasses, parents.difference(kingdoms, superclasses, classes, subclasses)
 
 def print_data_items(data):
     for item in data:
@@ -184,24 +182,27 @@ def extract_classification_relationships(drugs):
             if kingdom := classification.get('kingdom'):
                 relationships_set.add(('Root', 'Kingdoms', 'Kingdom', kingdom))
             if superclass := classification.get('superclass'):
-                relationships_set.add(('Kingdom', kingdom, 'Superclass', superclass.lower()))
+                relationships_set.add(('Kingdom', kingdom, 'Superclass', superclass))
             if class_ := classification.get('class'):
-                relationships_set.add(('Superclass', superclass.lower(), 'Class', class_.lower()))
+                relationships_set.add(('Superclass', superclass, 'Class', class_))
             if subclass := classification.get('subclass'):
-                relationships_set.add(('Class', class_.lower(), 'Subclass', subclass.lower()))
+                relationships_set.add(('Class', class_, 'Subclass', subclass))
             if direct_parent := classification.get('parent'):
                 for key, value in classification.items():
                     if key != "parent" and value == direct_parent:
                         parent_node = True
                         parent_type = key.title()
-                        relationships_set.add((f'{parent_type}', direct_parent.lower(), 'Drug', drug.get('name')))
+                        relationships_set.add((f'{parent_type}', direct_parent, 'Drug', drug.get('name')))
                         break
 
                 if not parent_node and subclass:
-                    relationships_set.add((f'Subclass', subclass.lower(), 'Parent', direct_parent.lower()))
-                    relationships_set.add((f'Parent', direct_parent.lower(), 'Drug', drug.get('name')))
+                    relationships_set.add(('Subclass', subclass, 'Parent', direct_parent))
+                    relationships_set.add(('Parent', direct_parent, 'Drug', drug.get('name')))
+        else:
+            relationships_set.add(('Unclassified','Unclassified', 'Drug', drug.get('name')))
 
 
+    relationships_set.add(('Root', 'Kingdoms', 'Unclassified', 'Unclassified'))
     return relationships_set
 
 def print_relations_neo4j(data):
@@ -232,10 +233,15 @@ def extract_interaction_relationships(drugs, type):
 def main():
     # create_data()
 
-    # data = load_from_pickle('./data/extracted-biotech-drugs.pkl')
-    data = load_from_pickle('./data/small-molecule-drugs.pkl')
-
-    kingdoms, superclasses, classes, subclasses, parents = extract_classification_sets(data)
+    biotech = load_from_pickle('./data/extracted-biotech-drugs.pkl')
+    # small = load_from_pickle('./data/small-molecule-drugs.pkl')
+    data = biotech
+    # data = biotech + small
+    #
+    # kingdoms, superclasses, classes, subclasses, parents = extract_classification_sets(data)
+    #
+    # print(f'Total length before: {len(kingdoms) + len(superclasses) + len(classes) + len(subclasses) + len(parents)}')
+    # print(f'Total length after: {len(kingdoms.union(superclasses).union(classes).union(subclasses).union(parents))}')
     #
     # print("Kingdoms:")
     # print_data_items(kingdoms)
@@ -248,9 +254,12 @@ def main():
     #
     # print("\nSubclasses:")
     # print_data_items_count(subclasses)
+    #
+    # print(f"\nParents: {len(parents)}")
+    # print_data_items(parents)
 
-    # relations = extract_classification_relationships(data)
-    # print_data_items(relations)
+    relations = extract_classification_relationships(data)
+    print_data_items(relations)
     # print_relations_neo4j(relations)
 
     # TOO MUCH

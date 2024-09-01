@@ -46,18 +46,10 @@ def main():
     subclasses = subclasses1 | subclasses2
     parents = parents1 | parents2
 
+    with Neo4jGraphClass(uri, user, password) as neo4j:
+        neo4j.create_or_update_graph(drugs, kingdoms, superclasses, classes, subclasses, parents, relations,200)
 
-    # print_data_items(small_molecule_rels)
-    # print(len(drugs))
 
-    print(uri, user, password, sep="\n")
-    try:
-        driver = GraphDatabase.driver(uri, auth=(user, password))
-        driver.verify_connectivity()
-    except neo4j.exceptions.ServiceUnavailable:
-        print("Could not establish a connection with Neo4j database!")
-    # with Neo4jGraphClass(uri, user, password) as neo4j:
-    #     neo4j.create_or_update_graph(drugs, kingdoms, superclasses, classes, subclasses, relations, parents,200)
 
 if __name__ == '__main__':
     main()
