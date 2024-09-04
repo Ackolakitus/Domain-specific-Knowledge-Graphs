@@ -1,8 +1,6 @@
 import neo4j.exceptions
 from neo4j import GraphDatabase
 
-
-# CREATE INDEX FOR (p:Plant) ON (p.scientific_name);
 def create_constraints(tx):
     tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (k:Kingdom) REQUIRE k.name IS UNIQUE ")
     tx.run("CREATE CONSTRAINT IF NOT EXISTS FOR (u:Unclassified) REQUIRE u.name IS UNIQUE ")
@@ -104,10 +102,10 @@ def add_or_update_relationships(tx, relationships):
     """
     Create relationship between any 2 types of nodes.
     """
-    types = {'Unclassified', 'Root', 'Kingdom', 'Superclass', 'Subclass', 'Parent', 'Drug'}
+    types = {'Unclassified', 'Root', 'Kingdom', 'Superclass', 'Class','Subclass', 'Parent', 'Drug'}
 
     for rel in relationships:
-        if len(rel) != 4 or rel[0] not in rel or rel[2] not in types:
+        if len(rel) != 4 or rel[0] not in types or rel[2] not in types:
             print("Invalid relationship format")
             return
 
@@ -185,7 +183,7 @@ class Neo4jGraphClass:
         """
         try:
             self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
-            # self.driver.verify_connectivity()
+            self.driver.verify_connectivity()
         except neo4j.exceptions.ConfigurationError:
             print("URI format is not supported! Check your uri environment variable.")
         except neo4j.exceptions.AuthError:
@@ -213,22 +211,25 @@ class Neo4jGraphClass:
 
         Steps:\n
         1. Add a root node labeled 'Root' with the name 'Kingdoms'.
-        2. Add classification nodes to the root node in batches.
-        3. Add drug nodes to the classification nodes in batches.
+        2. Add 'Unclassified' node for drug nodes that are missing classification.
+        3. Add classification and drug nodes in batches.
         4. Add relationships between nodes in batches.
 
         :param drugs: List of drugs dictionaries with attributes.
-        :param kingdoms: List of kingdoms names.
-        :param superclasses: List of superclasses names.
-        :param classes: List of classes names.
-        :param subclasses: List of subclasses names.
-        :param relationships: List of all relationships .
+        :param kingdoms: List of kingdom node names.
+        :param superclasses: List of superclass node names.
+        :param classes: List of class node names.
+        :param subclasses: List of subclass node names.
+        :param parents: List of parent node names.
+        :param relationships: List of all relationships.
         :param batch_size: Number of items to process per batch (default: 300).
         """
         with self.driver.session() as session:
             try:
                 session.execute_write(add_root_node)
+                print(f"Root node added")
                 session.execute_write(add_unclassified_node)
+                print(f"Unclassified node added")
             except neo4j.exceptions.ConstraintError:
                 pass
 

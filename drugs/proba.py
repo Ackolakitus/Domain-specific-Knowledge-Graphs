@@ -1,8 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from neo4j import GraphDatabase
-import neo4j.exceptions
+
 
 from Neo4jDrugsGraphClass import Neo4jGraphClass
 from drugs.extract_data import extract_classification_sets
@@ -35,9 +34,7 @@ def main():
 
     relations = biotech_rels.union(small_molecule_rels)
 
-
     kingdoms1, superclasses1, classes1, subclasses1, parents1 = extract_classification_sets(biotech)
-
     kingdoms2, superclasses2, classes2, subclasses2, parents2 = extract_classification_sets(small_molecule)
 
     kingdoms = kingdoms1 | kingdoms2
@@ -46,10 +43,10 @@ def main():
     subclasses = subclasses1 | subclasses2
     parents = parents1 | parents2
 
+    print(kingdoms)
+
     with Neo4jGraphClass(uri, user, password) as neo4j:
         neo4j.create_or_update_graph(drugs, kingdoms, superclasses, classes, subclasses, parents, relations,200)
-
-
 
 if __name__ == '__main__':
     main()
