@@ -1,8 +1,7 @@
 import os
-import argparse
 import sys
 from modules.dataset_functions import getDataFromRows, getRowsPreprocessedDataset
-from modules.graph_local import createGraphSaveLocally
+from modules.graph_local import create_graph_save_locally
 from modules.custom_help_formater import create_or_update_save_locally_args
 
 
@@ -18,9 +17,9 @@ def main():
         sys.exit(1)
 
     if args.action == "create":
-        rowsData = getRowsPreprocessedDataset(args.input_file)
-        plants, families, relationships = getDataFromRows(rowsData)
-        createGraphSaveLocally(plants, families, relationships, args.output_file)
+        data_rows = getRowsPreprocessedDataset(args.input_file)
+        plants, families, relationships = getDataFromRows(data_rows)
+        create_graph_save_locally(plants, families, relationships, args.output_file)
     # elif args.action == "update":
     #
     #
@@ -29,6 +28,11 @@ def main():
     # plants, families, relationships = getDataFromRows(rows)
     # createGraphSaveLocally(plants, families, relationships)
 
+def debug(input_file, output_file):
+    data_rows = getRowsPreprocessedDataset(input_file)
+    plants, families, relationships = getDataFromRows(data_rows)
+    create_graph_save_locally(plants, families, relationships, output_file)
 
 if __name__ == '__main__':
     main()
+    # debug("../plants/data/plants.csv", "../plants/output/plants_graph.graphml")

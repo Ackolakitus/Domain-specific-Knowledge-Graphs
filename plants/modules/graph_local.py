@@ -1,7 +1,7 @@
 import networkx as nx
 
 
-def updateGraphSaveLocally(input_file, output_path="plants_graph.graphml"):
+def update_graph_save_locally(input_file, output_path="../plants/output/ plants_graph.graphml"):
     G = nx.Graph()
     #
     # root_node = 'Families'
@@ -30,22 +30,26 @@ def updateGraphSaveLocally(input_file, output_path="plants_graph.graphml"):
     nx.write_graphml(G, output_path)
 
 
-def createGraphSaveLocally(plants, families, relationships, output_path):
-    G = nx.Graph()
+def create_graph_save_locally(plants, families, relationships, output_path):
+    graph = nx.Graph()
 
     root_node = 'Families'
-    G.add_node(root_node, type='root')
+    graph.add_node(root_node, type='root')
 
     for plant in plants:
-        G.add_node(plant['scientific_name'], type='plant', common_name=plant['common_name'], authors=plant['authors'])
+        authors_str = ','.join(plant['authors'])
+        graph.add_node(plant['scientific_name'], type='plant', common_name=plant['common_name'], authors=authors_str, symbol=plant['symbol'])
 
     for family in families:
-        G.add_node(family, type='family')
+        graph.add_node(family, type='family')
 
     for relationship in relationships:
         plant_node = relationship['scientific_name']
         family_node = relationship['family_name']
-        G.add_edge(plant_node, family_node)
+        graph.add_edge(family_node, plant_node)
 
-    nx.write_graphml(G, output_path)
+    for family in families:
+        graph.add_edge(root_node, family)
+
+    nx.write_graphml(graph, output_path)
     print(f"Graph saved to {output_path}")

@@ -5,10 +5,10 @@ from pathlib import Path
 from modules.dataset_functions import getDataFromRows, getRowsPreprocessedDataset
 from modules.custom_help_formater import create_or_update_save_neo4j_args
 from dotenv import load_dotenv
-from modules.Neo4jGraphClass import Neo4jGraphClass, print_plant_node_details
+from modules.Neo4jPlantsGraphClass import Neo4jGraphClass, print_plant_node_details
 
 
-def loadEnvVars():
+def load_env_vars():
     env_path = Path('..', '.env')
     load_dotenv(dotenv_path=env_path)
 
@@ -31,7 +31,7 @@ def main():
         print(f"Choose from actions [ create / update / delete].")
         sys.exit(1)
 
-    uri, user, password = loadEnvVars()
+    uri, user, password = load_env_vars()
 
     if not isinstance(uri, str) or not uri:
         print(f"The 'URI_PLANTS' environment variable is missing or is not a non-empty string.")
@@ -48,38 +48,37 @@ def main():
     if args.action in ["create", "update"]:
         try:
             with Neo4jGraphClass(uri, user, password) as neo4j:
-                rowsData = getRowsPreprocessedDataset(args.input_file)
-                plants, families, relationships = getDataFromRows(rowsData)
+                data_rows = getRowsPreprocessedDataset(args.input_file)
+                plants, families, relationships = getDataFromRows(data_rows)
 
-                neo4j.createOrUpdateGraph(plants, families, relationships, batch_size=500)
+                neo4j.create_or_update_graph(plants, families, relationships, batch_size=200)
         except ValueError as e:
             print(e.args[0])
     elif args.action == "delete":
-        delFamily = True if args.option == "with" else False
+        del_family = True if args.option == "with" else False
         try:
             with Neo4jGraphClass(uri, user, password) as neo4j:
-                rowsData = getRowsPreprocessedDataset(args.input_file)
-                plants, families = getDataFromRows(rowsData)
+                data_rows = getRowsPreprocessedDataset(args.input_file)
+                plants, families = getDataFromRows(data_rows)
 
-                neo4j.deleteDataFromGraph(plants, families, delFamily)
+                neo4j.delete_data_from_graph(plants, families, del_family)
         except ValueError as e:
             print(e.args[0])
 
 
 def debug():
-    uri, user, password = loadEnvVars()
+    uri, user, password = load_env_vars()
 
-    # rowsData = getRowsPreprocessedDataset("data/plants.csv")
-    # rowsData = getRowsPreprocessedDataset("data/plants_update.csv")
-    # plants, families, relationships = getDataFromRows(rowsData)
+    data_rows = getRowsPreprocessedDataset("data/plants.csv")
+    plants, families, relationships = getDataFromRows(data_rows)
 
-    # print(f"Plants {len(plants)}")
-    # print(f"Families {len(families)}")
-    # print(f"Relationships {len(relationships)}")
+    print(f"Plants {len(plants)}")
+    print(f"Families {len(families)}")
+    print(f"Relationships {len(relationships)}")
 
     try:
         with Neo4jGraphClass(uri, user, password) as neo4j:
-            # neo4j.createOrUpdateGraph(plants, families, relationships, batch_size=200)
+            neo4j.createOrUpdateGraph(plants, families, relationships, batch_size=200)
             plant = neo4j.get_plant_node("Abroma augustum")
             print_plant_node_details(plant)
     except ValueError as e:
@@ -87,5 +86,5 @@ def debug():
 
 
 if __name__ == '__main__':
-    # main()
-    debug()
+    main()
+    # debug()
