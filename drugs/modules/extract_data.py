@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from collections import defaultdict
-# from Neo4jDrugsGraphClass import Neo4jGraphClass
 import networkx as nx
 
 
@@ -279,8 +278,8 @@ def save_disease_data(diseases):
     save_to_pickle(sorted_diseases, '../data/extracted-diseases.pkl')
 
 
-def create_disease_nodes_and_relations(drugs):
-    diseases = load_from_pickle("../data/extracted-diseases.pkl")
+def create_disease_nodes_and_relations(drugs, extracted_diseases = "../data/extracted-diseases.pkl", diseases_file_path = '../data/extracted-disease-drug.tsv'):
+    diseases = load_from_pickle(extracted_diseases)
 
     drug_names = {d['drugbank-id']: d['name'] for d in drugs}
     disease_names = {d['doid']: d['name'] for d in diseases}
@@ -290,7 +289,7 @@ def create_disease_nodes_and_relations(drugs):
 
     rows = []
 
-    with open('../data/extracted-disease-drug.tsv', 'r') as file:
+    with open(diseases_file_path, 'r') as file:
         reader = csv.DictReader(file, delimiter='\t')
         for row in reader:
             rows.append(row)
