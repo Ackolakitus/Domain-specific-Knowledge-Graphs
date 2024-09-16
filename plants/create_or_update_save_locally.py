@@ -3,6 +3,7 @@ import sys
 from modules.dataset_functions import getDataFromRows, getRowsPreprocessedDataset
 from modules.graph_local import create_graph_save_locally
 from modules.custom_help_formater import create_or_update_save_locally_args
+from modules.graph_local import update_graph_save_locally
 
 
 def main():
@@ -20,13 +21,11 @@ def main():
         data_rows = getRowsPreprocessedDataset(args.input_file)
         plants, families, relationships = getDataFromRows(data_rows)
         create_graph_save_locally(plants, families, relationships, args.output_file)
-    # elif args.action == "update":
-    #
-    #
-    # rows = getRowsPreprocessedDataset(input_file)
-    #
-    # plants, families, relationships = getDataFromRows(rows)
-    # createGraphSaveLocally(plants, families, relationships)
+    elif args.action == "update":
+        rows = getRowsPreprocessedDataset(args.input_file)
+
+        plants, families, relationships = getDataFromRows(rows)
+        update_graph_save_locally(plants, families, relationships)
 
 def debug(input_file, output_file):
     data_rows = getRowsPreprocessedDataset(input_file)

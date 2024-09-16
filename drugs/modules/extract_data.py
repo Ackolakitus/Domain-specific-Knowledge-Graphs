@@ -7,8 +7,9 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from collections import defaultdict
-from drugs.modules.Neo4jDrugsGraphClass import Neo4jGraphClass
+# from Neo4jDrugsGraphClass import Neo4jGraphClass
 import networkx as nx
+
 
 def save_to_pickle(data, file_path):
     with open(file_path, 'wb') as pickle_file:
@@ -52,38 +53,45 @@ def extract_drug_info(file_path):
         classification = drug.find('drugbank:classification', ns)
 
         if classification is not None:
-            # Add to respective sets
-            if classification.find('drugbank:kingdom', ns) is not None:
-                kingdoms.add(str(classification.find('drugbank:kingdom', ns).text).lower().title())
+            kingdom = str(classification.find('drugbank:kingdom', ns).text) if classification.find('drugbank:kingdom', ns) is not None else None
+            superclass = str(classification.find('drugbank:superclass', ns).text) if classification.find('drugbank:superclass', ns) is not None else None
+            c = classification.find('drugbank:class', ns).text if classification.find('drugbank:class', ns) is not None else 'None'
+            subclass = str(classification.find('drugbank:subclass', ns).text) if classification.find('drugbank:subclass', ns) is not None else None
+            parent = str(classification.find('drugbank:direct-parent', ns).text) if classification.find('drugbank:direct-parent', ns) is not None else None
 
-            if classification.find('drugbank:superclass', ns) is not None:
-                superclasses.add(str(classification.find('drugbank:superclass', ns).text).lower().capitalize())
+            if kingdom is not None:
+                kingdoms.add(kingdom.lower().title())
 
-            if classification.find('drugbank:class', ns) is not None:
-                classes.add(str(classification.find('drugbank:class', ns).text).lower().capitalize())
+            if superclass is not None:
+                superclasses.add(superclass.lower().capitalize())
 
-            if classification.find('drugbank:subclass', ns) is not None:
-                subclasses.add(str(classification.find('drugbank:subclass', ns).text).lower().capitalize())
+            if c is not None:
+                classes.add(c.lower().capitalize())
 
-            if classification.find('drugbank:direct-parent', ns) is not None:
-                parents.add(str(classification.find('drugbank:direct-parent', ns).text).lower().capitalize())
+            if subclass is not None:
+                subclasses.add(subclass.lower().capitalize())
+
+            if parent is not None:
+                parents.add(parent.lower().capitalize())
 
         drug_info = {
             'drugbank-id': drug.find('drugbank:drugbank-id', ns).text,
             'type': drug.attrib.get('type'),
-            'name': drug.find('drugbank:name', ns).text.lower().capitalize() if drug.find('drugbank:name', ns) is not None else None,
+            'name': drug.find('drugbank:name', ns).text.lower().capitalize() if drug.find('drugbank:name',
+                                                                                          ns) is not None else None,
             'state': drug.find('drugbank:state', ns).text if drug.find('drugbank:state', ns) is not None else None,
             'groups': [group.text for group in drug.findall('drugbank:groups/drugbank:group', ns)],
             'salts': [salt.find('drugbank:name', ns).text for salt in drug.findall('drugbank:salts/drugbank:salt', ns)],
             'classification': {
-                'kingdom': str(classification.find('drugbank:kingdom',
-                                               ns).text).title() if classification is not None else None,
+                'kingdom': str(classification.find('drugbank:kingdom', ns).text).lower().title() if classification is not None else None,
                 'superclass': str(classification.find('drugbank:superclass',
-                                                  ns).text).lower().capitalize() if classification is not None else None,
-                'class': str(classification.find('drugbank:class', ns).text).lower().capitalize() if classification is not None else None,
-                'subclass': str(classification.find('drugbank:subclass', ns).text).lower().capitalize() if classification is not None else None,
+                                                      ns).text).lower().capitalize() if classification is not None else None,
+                'class': str(classification.find('drugbank:class',
+                                                 ns).text).lower().capitalize() if classification is not None else None,
+                'subclass': str(classification.find('drugbank:subclass',
+                                                    ns).text).lower().capitalize() if classification is not None else None,
                 'parent': str(classification.find('drugbank:direct-parent',
-                                              ns).text).lower().capitalize() if classification is not None else None,
+                                                  ns).text).lower().capitalize() if classification is not None else None,
             } if classification is not None else None,
             'affected_organisms': [organism.text for organism in
                                    drug.findall('drugbank:affected-organisms/drugbank:affected-organism', ns)],
@@ -93,8 +101,7 @@ def extract_drug_info(file_path):
                                    'description': interaction.find('drugbank:description', ns).text}
                                   for interaction in
                                   drug.findall('drugbank:drug-interactions/drugbank:drug-interaction', ns)],
-            'external_links': drug.find('drugbank:external-link', ns).text if drug.find('drugbank:external-link',
-                                                                                        ns) is not None else None,
+            'external_links': [link.findtext('drugbank:url', None, ns) for link in drug.findall('drugbank:external-links/drugbank:external-link', ns)],
         }
 
         if type == 'biotech':
@@ -145,15 +152,15 @@ def create_classification_sets(drugs):
         classification = drug.get('classification', {})
         if classification:
             if (kingdom := classification.get('kingdom')) != 'None':
-                kingdoms.add(kingdom.lower())
+                kingdoms.add(kingdom.lower().title())
             if (superclass := classification.get('superclass')) != 'None':
-                superclasses.add(superclass.lower())
+                superclasses.add(superclass.lower().capitalize())
             if (class_ := classification.get('class')) != 'None':
-                classes.add(class_.lower())
+                classes.add(class_.lower().capitalize())
             if (subclass := classification.get('subclass')) != 'None':
-                subclasses.add(subclass.lower())
+                subclasses.add(subclass.lower().capitalize())
             if (parent := classification.get('parent')) != 'None':
-                parents.add(parent.lower())
+                parents.add(parent.lower().capitalize())
 
     return kingdoms, superclasses, classes, subclasses, parents.difference(kingdoms, superclasses, classes, subclasses)
 
@@ -199,15 +206,18 @@ def create_classification_relationships(drugs):
                 last_classification_value = subclass
 
             if (direct_parent := classification.get('parent')) != 'None':
-                if any(key != "parent" and value.lower() == direct_parent.lower() for key, value in classification.items()):
-                    relationships_set.add((last_classification_type, last_classification_value, 'Drug', drug.get('name')))
+                if any(key != "parent" and value.lower() == direct_parent.lower() for key, value in
+                       classification.items()):
+                    relationships_set.add(
+                        (last_classification_type, last_classification_value, 'Drug', drug.get('name')))
                 else:
-                    relationships_set.add((last_classification_type, last_classification_value, 'Parent', direct_parent))
+                    relationships_set.add(
+                        (last_classification_type, last_classification_value, 'Parent', direct_parent))
                     relationships_set.add(('Parent', direct_parent, 'Drug', drug.get('name')))
             else:
                 relationships_set.add((last_classification_type, last_classification_value, 'Drug', drug.get('name')))
         else:
-            relationships_set.add(('Unclassified','Unclassified', 'Drug', drug.get('name')))
+            relationships_set.add(('Unclassified', 'Unclassified', 'Drug', drug.get('name')))
 
     relationships_set.add(('Root', 'Kingdoms', 'Unclassified', 'Unclassified'))
     return relationships_set
@@ -261,11 +271,13 @@ def extract_disease_info(filepath):
 
     return diseases
 
+
 def save_disease_data(diseases):
     sorted_diseases = sorted(diseases, key=lambda k: k['doid'])
 
     save_to_json(sorted_diseases, "../data/extracted-diseases.json")
     save_to_pickle(sorted_diseases, '../data/extracted-diseases.pkl')
+
 
 def create_disease_nodes_and_relations(drugs):
     diseases = load_from_pickle("../data/extracted-diseases.pkl")
@@ -293,6 +305,7 @@ def create_disease_nodes_and_relations(drugs):
 
     return diseases_to_create, relationships_set
 
+
 def loadEnvVars():
     env_path = Path('../..', 'proba.env')
     load_dotenv(dotenv_path=env_path)
@@ -303,46 +316,111 @@ def loadEnvVars():
 
     return uri, user, password
 
-def create_graph_save_locally(drugs, kingdoms, superclasses, classes, subclasses, parents, drug_relations,diseases, disease_relations):
-    graph = nx.Graph()
-    root_node = 'Kingdoms'
-    graph.add_node(root_node, type='root')
-    # NEDOVRSHENO
-    # NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO#
-    # NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO#
-    # NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO#
-    # NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO#
-    # NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO#
-    # NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO# NEDOVRSHENO#
-    # NEDOVRSHENO# NEDOVRSHENO
 
-
-def main():
-    # ======== CREATE DATA =========
-    file_path = '../raw-data/full database.xml'
+def create_graph_save_locally(file_path, output_path = '../data/drugs_diseases_graph.graphml'):
     biotech, small_molecule, kingdoms, superclasses, classes, subclasses, parents = extract_drug_info(file_path)
     save_drug_data(biotech, small_molecule)
 
-    diseases = extract_disease_info("../raw-data/disease.tsv")
-    save_disease_data(diseases)
+    drugs = biotech + small_molecule
 
-    # ======== LOAD DATA =========
-    uri, user, password = loadEnvVars()
+    graph = nx.Graph()
+    root_node = 'Kingdoms'
+    graph.add_node(root_node, type='root')
 
-    # biotech = load_from_pickle('./data/extracted-biotech-drugs.pkl')
-    # small_molecule = load_from_pickle('./data/small-molecule-drugs.pkl')
+    graph.add_nodes_from(kingdoms, type='kingdom')
+    graph.add_nodes_from(superclasses, type='superclass')
+    graph.add_nodes_from(classes, type='class')
+    graph.add_nodes_from(subclasses, type='subclass')
+    graph.add_nodes_from(parents, type='parent')
 
-    all_drugs = biotech + small_molecule
+    for drug in drugs:
+        groups_str = ','.join(drug['groups']) if drug['groups'] else ''
+        salts_str = ','.join(drug['salts']) if drug['salts'] else ''
+        affected_orgs_str = ','.join(drug['affected_organisms']) if drug['affected_organisms'] else ''
+        links_str = ','.join(drug['external_links']) if drug['external_links'] else ''
 
-    relations = create_classification_relationships(all_drugs)
+        graph.add_node(drug['name'], id=drug['drugbank-id'], type=drug['type'],
+                       state=drug['state'] if drug['state'] else '', groups=groups_str, salts=salts_str, affected_organisms=affected_orgs_str, external_links=links_str)
 
-    kingdoms, superclasses, classes, subclasses, parents = create_classification_sets(all_drugs)
 
-    disease_nodes, disease_relations = create_disease_nodes_and_relations(all_drugs)
+    drug_relations = create_classification_relationships(drugs)
 
-    with Neo4jGraphClass(uri, user, password) as neo4j:
-        neo4j.create_or_update_graph(all_drugs, kingdoms, superclasses, classes, subclasses, parents, relations, disease_nodes,
-                                     disease_relations, 200)
+    for relation in drug_relations:
+        graph.add_edge(relation[1], relation[3], type=f'HAS_{str(relation[2]).upper()}')
 
-if __name__ == '__main__':
-    main()
+    diseases, disease_relations = create_disease_nodes_and_relations(drugs)
+    for disease in diseases:
+        synonyms_str = ','.join(disease['synonyms'])
+        graph.add_node(disease['name'], id=disease['doid'], definition=disease['definition'],synonyms=synonyms_str)
+
+    for relation in disease_relations:
+        graph.add_edge(relation[1], relation[3], type='INDICATES')
+
+
+    nx.write_graphml(graph, output_path)
+    print(f"Graph saved to {output_path}")
+
+def update_graph_save_locally(input_file, graph_file, output_file):
+    graph = nx.read_graphml(graph_file)
+
+    biotech, small_molecule, kingdoms, superclasses, classes, subclasses, parents = extract_drug_info(input_file)
+
+    drugs = biotech + small_molecule
+
+    def add_or_update_nodes(items, type):
+        for item in items:
+            if not graph.has_node(item):
+                graph.add_node(item, type=type)
+
+    add_or_update_nodes(kingdoms, 'kingdom')
+    add_or_update_nodes(superclasses, 'superclass')
+    add_or_update_nodes(classes, 'class')
+    add_or_update_nodes(subclasses, 'subclass')
+    add_or_update_nodes(parents, 'parent')
+
+    for drug in drugs:
+        if not graph.has_node(drug['name']):
+            groups_str = ','.join(drug['groups']) if drug['groups'] else ''
+            salts_str = ','.join(drug['salts']) if drug['salts'] else ''
+            affected_orgs_str = ','.join(drug['affected_organisms']) if drug['affected_organisms'] else ''
+            links_str = ','.join(drug['external_links']) if drug['external_links'] else ''
+
+            graph.add_node(drug['name'], id=drug['drugbank-id'], type=drug['type'],
+                           state=drug['state'] if drug['state'] else '', groups=groups_str, salts=salts_str,
+                           affected_organisms=affected_orgs_str, external_links=links_str)
+        # else:
+        #     node = graph.nodes[drug['name']]
+        #
+        #     graph.nodes[drug['name']]['drugbank-id'] = drug['drugbank-id'] if (drug['drugbank-id'] != node[
+        #         'drugbank-id']) and (drug['drugbank-id'] != 'None') else node['drugbank-id']
+        #     graph.nodes[drug['name']]['type'] = drug['type'] if drug['type'] != node['type'] else node['type']
+        #     graph.nodes[drug['name']]['state'] = drug['state'] if drug['state'] != node['state'] else node['state']
+        #     graph.nodes[drug['name']]['groups'] = ','.join(drug['groups']) if drug['groups'] else node['groups']
+        #     graph.nodes[drug['name']]['salts'] = ','.join(drug['salts']) if drug['salts'] else node['salts']
+        #     graph.nodes[drug['name']]['affected_organisms'] = ','.join(drug['affected_organisms']) if drug[
+        #         'affected_organisms'] else node['affected_organisms']
+        #     graph.nodes[drug['name']]['external_links'] = ','.join(drug['external_links']) if drug[
+        #         'external_links'] else node['external_links']
+
+    drug_relations = create_classification_relationships(drugs)
+
+    for relation in drug_relations:
+        if not graph.has_edge(relation[1], relation[3]):
+            graph.add_edge(relation[1], relation[3], type=f'HAS_{str(relation[2]).upper()}')
+
+    diseases, disease_relations = create_disease_nodes_and_relations(drugs)
+    for disease in diseases:
+        if not graph.has_node(disease['name']):
+            synonyms_str = ','.join(disease['synonyms'])
+            graph.add_node(disease['name'], id=disease['doid'], definition=disease['definition'], synonyms=synonyms_str)
+        # else:
+        #     node = graph.nodes[disease['name']]
+        #     graph.nodes[disease['name']]['definition'] = disease['definition'] if disease['definition'] else node['definition']
+        #     graph.nodes[disease['name']]['synonyms'] = ','.join(disease['synonyms']) if disease['synonyms'] else node['synonyms']
+
+    for relation in disease_relations:
+        if not graph.has_edge(relation[1], relation[3]):
+            graph.add_edge(relation[1], relation[3], type='INDICATES')
+
+    nx.write_graphml(graph, output_file)
+    print(f"Graph updated and saved to {output_file}")

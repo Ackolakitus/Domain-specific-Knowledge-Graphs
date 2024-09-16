@@ -18,10 +18,13 @@ def create_or_update_save_locally_args():
                         type=str)
     parser.add_argument("-a", "--action",
                         choices=["create", "update"],
-                        help="Action to perform on the graph.",
+                        help="Action to perform on the graph [create/update].",
                         required=True, type=str)
     parser.add_argument("-of", "--output_file",
-                        help="Output file name.",
+                        help="Output file path.",
+                        default="./output/drugs_and_diseases_graph.graphml")
+    parser.add_argument("-gf", "--graph_file",
+                        help="Existing graph file path if updating graph.",
                         default="./output/drugs_and_diseases_graph.graphml")
     return parser.parse_args()
 

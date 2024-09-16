@@ -18,10 +18,10 @@ def create_or_update_save_locally_args():
                         type=str)
     parser.add_argument("-a", "--action",
                         choices=["create", "update"],
-                        help="Action to perform on the graph.",
+                        help="Action to perform on the graph [create/update].",
                         required=True, type=str)
     parser.add_argument("-of", "--output_file",
-                        help="Output file name.",
+                        help="Output file path.",
                         default="./output/plants_graph.graphml")
     return parser.parse_args()
 
@@ -43,23 +43,3 @@ def create_or_update_save_neo4j_args():
                         help="Option do delete plant nodes with or without the family.",
                         default="without")
     return parser.parse_args()
-
-
-# def show_pyvis_restricted():
-#     parser = argparse.ArgumentParser(description="Show graph visualisation with Pyvis. ",
-#                                      formatter_class=CustomHelpFormatter)
-#
-#     parser.add_argument("-if", "--input_file",
-#                         help="Dataset txt/csv file path or Graph file path.",
-#                         required=True,
-#                         type=str)
-#     parser.add_argument("-n", "--nodes",
-#                         type=int,
-#                         help="Number of nodes to show.",
-#                         default=500)
-#     parser.add_argument("-e", "--edges",
-#                         type=int,
-#                         help="Number of edges to show.",
-#                         default=500)
-#
-#   return parser.parse_args()

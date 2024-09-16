@@ -9,7 +9,7 @@ from modules.Neo4jPlantsGraphClass import Neo4jGraphClass, print_plant_node_deta
 
 
 def load_env_vars():
-    env_path = Path('..', '.env')
+    env_path = Path('..', 'proba.env')
     load_dotenv(dotenv_path=env_path)
 
     uri = os.getenv("URI_PLANTS")
@@ -78,7 +78,7 @@ def debug():
 
     try:
         with Neo4jGraphClass(uri, user, password) as neo4j:
-            neo4j.createOrUpdateGraph(plants, families, relationships, batch_size=200)
+            neo4j.create_or_update_graph(plants, families, relationships, batch_size=200)
             plant = neo4j.get_plant_node("Abroma augustum")
             print_plant_node_details(plant)
     except ValueError as e:
@@ -86,5 +86,5 @@ def debug():
 
 
 if __name__ == '__main__':
-    main()
-    # debug()
+    # main()
+    debug()

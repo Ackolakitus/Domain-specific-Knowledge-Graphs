@@ -7,6 +7,8 @@ proba.env
 drugs/proba.py
 drugs/proba2.py
 */__pycache__/*
+plants/output/
+drugs/output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

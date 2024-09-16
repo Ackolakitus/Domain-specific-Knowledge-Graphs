@@ -185,10 +185,11 @@ class Neo4jGraphClass:
         with self.driver.session() as session:
 
             def process_batches(items, batch_func, items_name):
-                total_items = len(items)
+                items_list = list(items)
+                total_items = len(items_list)
                 for i in range(0, total_items, batch_size):
                     end_index = min(i + batch_size, total_items)
-                    batch = items[i:end_index]
+                    batch = items_list[i:end_index]
                     try:
                         session.execute_write(batch_func, batch)
                     except neo4j.exceptions.ConstraintError:

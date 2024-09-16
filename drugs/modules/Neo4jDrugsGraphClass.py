@@ -246,7 +246,7 @@ class Neo4jGraphClass:
         with self.driver.session() as session:
             def process_batches(items, batch_func, items_name):
                 items_list = list(items)
-                total_items = len(items)
+                total_items = len(items_list)
 
                 for i in range(0, total_items, batch_size):
                     end_index = min(i + batch_size, total_items)
