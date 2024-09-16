@@ -258,25 +258,25 @@ class Neo4jGraphClass:
                     print(f"Processed {items_name} from {i} to {i + len(batch)}")
 
             try:
-                # session.execute_write(add_root_node)
+                session.execute_write(add_root_node)
                 print(f"Root node added")
-                # session.execute_write(add_unclassified_node)
+                session.execute_write(add_unclassified_node)
                 print(f"Unclassified node added")
             except neo4j.exceptions.ConstraintError:
                 pass
 
 
 
-            # process_batches(kingdoms, add_kingdom_nodes, "kingdoms")
-            # process_batches(superclasses, add_superclass_nodes, "superclasses")
-            # process_batches(classes, add_class_nodes, "classes")
-            # process_batches(subclasses, add_subclass_nodes, "subclasses")
-            # process_batches(parents, add_parent_nodes, "parents")
+            process_batches(kingdoms, add_kingdom_nodes, "kingdoms")
+            process_batches(superclasses, add_superclass_nodes, "superclasses")
+            process_batches(classes, add_class_nodes, "classes")
+            process_batches(subclasses, add_subclass_nodes, "subclasses")
+            process_batches(parents, add_parent_nodes, "parents")
 
             process_batches(drugs, add_or_update_drug_nodes, "drugs")
-            # process_batches(relationships, add_or_update_relationships, "relationships")
-            #
-            # process_batches(diseases, add_disease_nodes, 'diseases')
-            # process_batches(disease_relations, add_or_update_relationships, 'disease-drug-relations')
+            process_batches(relationships, add_or_update_relationships, "relationships")
+
+            process_batches(diseases, add_disease_nodes, 'diseases')
+            process_batches(disease_relations, add_or_update_relationships, 'disease-drug-relations')
 
 
